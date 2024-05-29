@@ -1,19 +1,19 @@
--- Game for ao
+- Game for ao
 
 -- Global variable initialization
 local flagCaptured = false
-local flagLocation = {x = 0, y = 0} -- Coordinates of the red flag
-local players = {} -- Table to store player data
+local flagLocation = {x = 0, y = 0} 
+local players = {} 
 
 -- Credentials and game token
 local CRED = "Sa0iBLPNyJQrwpTTG-tWLQU-1QeUAJA73DdxGGiKoJc"
-local GAME = "JPSE75vQ-QTAiYBSLTdDfQDUcJYvyVNFzO_cO7Kt9xM"
-
+local GAME = " DvvaNtJOzhiIpGqZVjuY_C6C7NPORJsChCVrLNvYC7k"
 colors = { red = "\27[31m", green = "\27[32m",reset = "\27[0m",}
 
 -- Initialize maximum number of players
 local maxPlayers = 20
 
+Mintiduck:
 -- Initialize arena size
 local arenaWidth = 40 -- Width of the arena in units 
 local arenaHeight = 40 -- Height of the arena in units
@@ -39,7 +39,13 @@ local function handleStartGame()
     -- Function to transfer cred to start the game
     local function transferCred()
         -- Send command to transfer cred to game
-        Send({Target = CRED, Action = "Transfer", Quantity = "10", Recipient = GAME})
+        local response = Send({Target = CRED, Action = "Transfer", Quantity = "10", Recipient = GAME})
+        if response.status ~= "success" then
+            -- Gunakan operator 'or' untuk menggantikan nilai nil dengan 'Unknown error'
+            print("Error during credit transfer: " .. (response.error or "Unknown error"))
+        else
+            print("Credit transfer successful.")
+        end
     end
     
     -- Check if player has enough cred to start the game
@@ -90,11 +96,8 @@ end
 
 -- Handler to capture another player
 local function handleCapturePlayer(captorID, capturedID)
-    -- Function to capture another player
-    local function capturePlayer(captorID, capturedID)
-        -- Find the captured player
-
-for _, player in ipairs(players) do
+   local function capturePlayer(captorID, capturedID)
+        for _, player in ipairs(players) do
             if player.id == capturedID then
                 -- Return the captured player to the starting point
                 player.x = math.random(arenaWidth)
@@ -107,28 +110,34 @@ for _, player in ipairs(players) do
             end
         end
     end
-    
     capturePlayer(captorID, capturedID)
+end
+
+-- Fungsi untuk memeriksa apakah bendera telah ditangkap
+local function handleCheckFlagCaptured()
+    -- Contoh logika sederhana untuk memeriksa penangkapan bendera
+    for _, player in ipairs(players) do
+        if player.x == flagLocation.x and player.y == flagLocation.y then
+            flagCaptured = true
+            print(colors.green .. "Bendera telah ditangkap oleh pemain " .. player.id .. colors.reset)
+            break
+        end
+    end
 end
 
 -- Handler to run the game overall
 local function handleMain()
-    -- Main game function
+    -- Function to manage the main game loop
     local function main()
-        -- Call the handler to start the game
         handleStartGame()
-
-        -- Main game loop
         while not flagCaptured do
-            local alivePlayers = #players -- Count the number of alive players
+            local alivePlayers = #players 
             if alivePlayers == 0 then
-                break -- Exit the loop if there are no more alive players
+                break 
             end
 
-            -- Each player moves randomly
             for _, player in ipairs(players) do
                 if alivePlayers == 1 and not player.hasWon then
-                    -- If there's only one player left and they haven't won yet, they win the game
                     player.hasWon = true
                     flagCaptured = true
                     break
@@ -137,21 +146,17 @@ local function handleMain()
                 if not player.hasLost then
                     local newX = math.random(arenaWidth)
                     local newY = math.random(arenaHeight)
-                    -- Call the handler to move the player
                     handleMovePlayer(player.id, newX, newY)
-                    -- Call the handler to check if the flag has been captured
                     handleCheckFlagCaptured()
                     if flagCaptured then
-                        break -- Exit the loop if the flag has been captured
+                        break 
                     end
                 end
             end
         end
 
-        -- Game over, display victory or defeat message
         print("The game is over!")
 
-        -- Determine the winners and distribute bonus cred
         local winners = {}
         for _, player in ipairs(players) do
             if player.hasWon then
@@ -159,60 +164,33 @@ local function handleMain()
             end
         end
 
-if #winners > 0 then
-    -- Calculate bonus cred for each winner
-    local totalBonusCred = 0
-    -- Calculate total cred in the game
-    local totalGameCred = tonumber(CRED)
-    for _, player in ipairs(players) do
-        if player.bonusCred then
-            totalGameCred = totalGameCred + player.bonusCred
-        end
-    end
-    
-    for i, winner in ipairs(winners) do
-        if i == 1 then
-            -- First winner gets 50% of the total cred in the game
-            winner.bonusCred = math.floor(totalGameCred * 0.5)
-            totalBonusCred = totalBonusCred + winner.bonusCred
-        end
-    end
+        if #winners > 0 then
+            local totalBonusCred = 0
+            local totalGameCred = tonumber(CRED)
+            for _, player in ipairs(players) do
+                if player.bonusCred then
+                    totalGameCred = totalGameCred + player.bonusCred
+                end
+            end
+            
+            for i, winner in ipairs(winners) do
+                if i == 1 then
+                    winner.bonusCred = math.floor(totalGameCred * 0.5)
+                    totalBonusCred = totalBonusCred + winner.bonusCred
+                end
+            end
 
-    -- Print bonus cred for the first winner
-    for _, winner in ipairs(winners) do
-        print("Player " .. winner.id .. " has won the game and received " .. winner.bonusCred .. " bonus cred!")
-        -- Send bonus cred to winner
-        Send({Target = GAME, Action = "Transfer", Quantity = tostring(winner.bonusCred), Recipient = winner.id})
-    end
-    print("Total bonus cred distributed: " .. totalBonusCred)
-else
-    print("No winners in this game.")
-end
-
-            -- Print bonus cred for each winner
             for _, winner in ipairs(winners) do
                 print("Player " .. winner.id .. " has won the game and received " .. winner.bonusCred .. " bonus cred!")
-                -- Send bonus cred to winner
                 Send({Target = GAME, Action = "Transfer", Quantity = tostring(winner.bonusCred), Recipient = winner.id})
             end
             print("Total bonus cred distributed: " .. totalBonusCred)
         else
             print("No winners in this game.")
-        end
-    end
+        end  -- This 'end' closes the if #winners > 0 block
+    end  -- This 'end' closes the local function main()
     
     main()
-end
+end  -- This 'end' closes the local function handleMain()
 
-    -- Find the player with the matching ID
-    for i, player in ipairs(players) do
-        if player.id == playerID and player.hasWon then
-            withdrawAllowed = true
-            playerIndex = i
-            break
-        end
-    end
-
-
--- Call the handler to run the game overall
 handleMain()
